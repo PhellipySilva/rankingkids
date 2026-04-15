@@ -1,28 +1,16 @@
-// ═══════════════════════════════════════════════════
-//  🔌 SUPABASE — substitua pelas suas credenciais
-// ═══════════════════════════════════════════════════
 const SUPABASE_URL = "https://yzvgawtjvjfvsgaqsjwk.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6dmdhd3RqdmpmdnNnYXFzandrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNTUxMTUsImV4cCI6MjA5MTgzMTExNX0.vbqveaoeFYexI147qOw7GQDr4ET5B9FcrHltCDXbSrU"; // ← troque pela chave anon que começa com eyJ
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6dmdhd3RqdmpmdnNnYXFzandrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNTUxMTUsImV4cCI6MjA5MTgzMTExNX0.vbqveaoeFYexI147qOw7GQDr4ET5B9FcrHltCDXbSrU";
 
-// ═══════════════════════════════════════════════════
-//  🔑 SENHA DO PAINEL ADMIN
-// ═══════════════════════════════════════════════════
 const SENHA_ADMIN      = "beach2025";
 const MAX_TENTATIVAS   = 5;
 const BLOQUEIO_MINUTOS = 2;
 
-// ═══════════════════════════════════════════════════
-//  ESTADO INTERNO
-// ═══════════════════════════════════════════════════
 let alunos         = [];
 let categoriaAtiva = "Todos";
 let adminAberto    = false;
 let tentativas     = 0;
 let bloqueadoAte   = null;
 
-// ═══════════════════════════════════════════════════
-//  SUPABASE HELPERS
-// ═══════════════════════════════════════════════════
 const headers = {
   "apikey":        SUPABASE_KEY,
   "Authorization": `Bearer ${SUPABASE_KEY}`,
@@ -64,9 +52,6 @@ async function dbRemoverAluno(id) {
   if (!res.ok) throw new Error("Erro ao remover aluno");
 }
 
-// ═══════════════════════════════════════════════════
-//  CARREGAR DADOS DO BANCO
-// ═══════════════════════════════════════════════════
 async function carregarDados() {
   try {
     mostrarCarregando(true);
@@ -90,9 +75,6 @@ function mostrarCarregando(sim) {
   }
 }
 
-// ═══════════════════════════════════════════════════
-//  UTILITÁRIOS — AVATAR
-// ═══════════════════════════════════════════════════
 const paleta = ["#1A6B4A","#1E7BB5","#7C3AED","#DB2777","#059669","#D97706","#0E7490","#B45309"];
 
 function corAvatar(nome) {
@@ -104,9 +86,6 @@ function iniciais(nome) {
   return nome.trim().split(/\s+/).map(p => p[0]).join("").slice(0, 2).toUpperCase();
 }
 
-// ═══════════════════════════════════════════════════
-//  CALCULAR RANKING
-// ═══════════════════════════════════════════════════
 function calcularRanking(lista) {
   const sorted = [...lista].sort((a, b) => b.pontos - a.pontos);
   let posAtual = 1;
@@ -126,9 +105,6 @@ function filtrarAlunos() {
     : alunos.filter(a => a.categoria === categoriaAtiva);
 }
 
-// ═══════════════════════════════════════════════════
-//  RENDER — STATS
-// ═══════════════════════════════════════════════════
 function renderStats(ranking) {
   const max  = ranking[0]?.pontos || 0;
   const cats = [...new Set(ranking.map(a => a.categoria))].length;
@@ -148,9 +124,6 @@ function renderStats(ranking) {
   `;
 }
 
-// ═══════════════════════════════════════════════════
-//  RENDER — PÓDIO
-// ═══════════════════════════════════════════════════
 function renderPodio(ranking) {
   const w = document.getElementById("podio-wrapper");
   if (categoriaAtiva === "Todos" || ranking.length < 3) { w.innerHTML = ""; return; }
@@ -178,9 +151,6 @@ function renderPodio(ranking) {
   `;
 }
 
-// ═══════════════════════════════════════════════════
-//  RENDER — TABELA
-// ═══════════════════════════════════════════════════
 function medalha(pos) {
   return pos === 1 ? "🥇" : pos === 2 ? "🥈" : pos === 3 ? "🥉" : pos;
 }
@@ -233,9 +203,6 @@ function renderTabela(ranking) {
   `;
 }
 
-// ═══════════════════════════════════════════════════
-//  RENDER — EDITOR ADMIN
-// ═══════════════════════════════════════════════════
 function renderEditor() {
   const ranking = calcularRanking(filtrarAlunos());
   document.getElementById("editor-lista").innerHTML = ranking.map(a => `
@@ -253,9 +220,6 @@ function renderEditor() {
   `).join("");
 }
 
-// ═══════════════════════════════════════════════════
-//  RENDER — TUDO
-// ═══════════════════════════════════════════════════
 function renderizar() {
   const ranking = calcularRanking(filtrarAlunos());
   renderStats(ranking);
@@ -264,9 +228,6 @@ function renderizar() {
   if (adminAberto) renderEditor();
 }
 
-// ═══════════════════════════════════════════════════
-//  FILTROS
-// ═══════════════════════════════════════════════════
 document.getElementById("filtros").addEventListener("click", function(e) {
   if (!e.target.matches(".filtro-btn")) return;
   categoriaAtiva = e.target.dataset.cat;
@@ -275,9 +236,6 @@ document.getElementById("filtros").addEventListener("click", function(e) {
   renderizar();
 });
 
-// ═══════════════════════════════════════════════════
-//  MODAL DE SENHA
-// ═══════════════════════════════════════════════════
 function clicarAdmin() {
   if (adminAberto) { sairAdmin(); return; }
 
@@ -366,9 +324,6 @@ function verificarSenha() {
   }
 }
 
-// ═══════════════════════════════════════════════════
-//  ADMIN — ABRIR / FECHAR
-// ═══════════════════════════════════════════════════
 function abrirAdmin() {
   adminAberto = true;
   const btn = document.getElementById("btn-toggle-admin");
@@ -387,9 +342,6 @@ function sairAdmin() {
   toast("👋 Painel fechado.", "success");
 }
 
-// ═══════════════════════════════════════════════════
-//  ADMIN — SALVAR RANKING
-// ═══════════════════════════════════════════════════
 async function salvarRanking() {
   const btn = document.querySelector(".btn-salvar");
   btn.disabled = true;
@@ -421,9 +373,6 @@ async function salvarRanking() {
   }
 }
 
-// ═══════════════════════════════════════════════════
-//  ADMIN — ADICIONAR ALUNO
-// ═══════════════════════════════════════════════════
 async function adicionarAluno() {
   const nome   = document.getElementById("novo-nome").value.trim();
   const cat    = document.getElementById("novo-cat").value;
@@ -453,9 +402,6 @@ async function adicionarAluno() {
   }
 }
 
-// ═══════════════════════════════════════════════════
-//  ADMIN — REMOVER ALUNO
-// ═══════════════════════════════════════════════════
 async function removerAluno(id) {
   const aluno = alunos.find(a => a.id === id);
   if (!aluno) return;
@@ -472,14 +418,13 @@ async function removerAluno(id) {
   }
 }
 
-// ═══════════════════════════════════════════════════
-//  TOAST
-// ═══════════════════════════════════════════════════
 let toastTimer;
 function toast(msg, tipo = "success") {
   const el = document.getElementById("toast");
   el.textContent = msg;
   el.className   = `toast ${tipo} show`;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove("show"), 3200);}
+  toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+}
+
 carregarDados();
