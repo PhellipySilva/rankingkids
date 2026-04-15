@@ -481,22 +481,5 @@ function toast(msg, tipo = "success") {
   el.textContent = msg;
   el.className   = `toast ${tipo} show`;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
-}
-
-// ═══════════════════════════════════════════════════
-//  SEMANA NO HEADER
-// ═══════════════════════════════════════════════════
-(function() {
-  const agora  = new Date();
-  const inicio = new Date(agora.getFullYear(), 0, 1);
-  const sem    = Math.ceil(((agora - inicio) / 86400000 + inicio.getDay() + 1) / 7);
-  const meses  = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-  document.getElementById("semana-label").textContent =
-    `📅 Semana ${sem} · ${meses[agora.getMonth()]} ${agora.getFullYear()}`;
-})();
-
-// ═══════════════════════════════════════════════════
-//  INICIALIZAR
-// ═══════════════════════════════════════════════════
+  toastTimer = setTimeout(() => el.classList.remove("show"), 3200);}
 carregarDados();
