@@ -1,38 +1,98 @@
-// 🔑 SENHA DO PAINEL ADMIN — troque para a sua senha
-const SENHA_ADMIN = "beach2025";
+// ═══════════════════════════════════════════════════
+//  🔌 SUPABASE — substitua pelas suas credenciais
+// ═══════════════════════════════════════════════════
+const SUPABASE_URL = "https://yzvgawtjvjfvsgaqsjwk.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6dmdhd3RqdmpmdnNnYXFzandrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNTUxMTUsImV4cCI6MjA5MTgzMTExNX0.vbqveaoeFYexI147qOw7GQDr4ET5B9FcrHltCDXbSrU"; // ← troque pela chave anon que começa com eyJ
 
-// Bloqueio após X tentativas erradas
-const MAX_TENTATIVAS    = 5;
-const BLOQUEIO_MINUTOS  = 2;
+// ═══════════════════════════════════════════════════
+//  🔑 SENHA DO PAINEL ADMIN
+// ═══════════════════════════════════════════════════
+const SENHA_ADMIN      = "beach2025";
+const MAX_TENTATIVAS   = 5;
+const BLOQUEIO_MINUTOS = 2;
 
-/* ═══════════════════════════════════════════════════
-   📋 DADOS DOS ALUNOS
-   Edite à vontade. Categorias válidas: "Adulto" | "Kids"
-═══════════════════════════════════════════════════ */
-let alunos = [
-  { id: 1,  nome: "Rafael Torres",  categoria: "Adulto", pontos: 1100 },
-  { id: 2,  nome: "Bruna Santos",   categoria: "Adulto", pontos: 920  },
-  { id: 3,  nome: "Diego Ferreira", categoria: "Adulto", pontos: 755  },
-  { id: 4,  nome: "Ana Lima",       categoria: "Adulto", pontos: 680  },
-  { id: 5,  nome: "Lucas Souza",    categoria: "Kids",   pontos: 850  },
-  { id: 6,  nome: "Miguel Costa",   categoria: "Kids",   pontos: 720  },
-  { id: 7,  nome: "Sofia Mendes",   categoria: "Kids",   pontos: 640  },
-  { id: 8,  nome: "Pedro Alves",    categoria: "Kids",   pontos: 530  },
-  { id: 9,  nome: "Julia Rocha",    categoria: "Kids",   pontos: 490  },
-];
-
-/* ═══════════════════════════════════════════════════
-   ESTADO INTERNO
-═══════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════
+//  ESTADO INTERNO
+// ═══════════════════════════════════════════════════
+let alunos         = [];
 let categoriaAtiva = "Todos";
 let adminAberto    = false;
-let proximoId      = 200;
 let tentativas     = 0;
 let bloqueadoAte   = null;
 
-/* ═══════════════════════════════════════════════════
-   UTILITÁRIOS — AVATAR
-═══════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════
+//  SUPABASE HELPERS
+// ═══════════════════════════════════════════════════
+const headers = {
+  "apikey":        SUPABASE_KEY,
+  "Authorization": `Bearer ${SUPABASE_KEY}`,
+  "Content-Type":  "application/json",
+  "Prefer":        "return=representation",
+};
+
+async function dbBuscarTodos() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/alunos?order=pontos.desc`, { headers });
+  if (!res.ok) throw new Error("Erro ao buscar alunos");
+  return res.json();
+}
+
+async function dbAtualizarPontos(id, pontos) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/alunos?id=eq.${id}`, {
+    method:  "PATCH",
+    headers,
+    body: JSON.stringify({ pontos }),
+  });
+  if (!res.ok) throw new Error("Erro ao atualizar pontos");
+}
+
+async function dbInserirAluno(nome, categoria, pontos) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/alunos`, {
+    method:  "POST",
+    headers,
+    body: JSON.stringify({ nome, categoria, pontos }),
+  });
+  if (!res.ok) throw new Error("Erro ao inserir aluno");
+  const data = await res.json();
+  return data[0];
+}
+
+async function dbRemoverAluno(id) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/alunos?id=eq.${id}`, {
+    method:  "DELETE",
+    headers,
+  });
+  if (!res.ok) throw new Error("Erro ao remover aluno");
+}
+
+// ═══════════════════════════════════════════════════
+//  CARREGAR DADOS DO BANCO
+// ═══════════════════════════════════════════════════
+async function carregarDados() {
+  try {
+    mostrarCarregando(true);
+    alunos = await dbBuscarTodos();
+    renderizar();
+  } catch (e) {
+    console.error(e);
+    toast("❌ Erro ao carregar dados. Verifique a conexão.", "error");
+  } finally {
+    mostrarCarregando(false);
+  }
+}
+
+function mostrarCarregando(sim) {
+  if (sim) {
+    document.getElementById("ranking-card").innerHTML = `
+      <div class="vazio">
+        <div class="vazio-icon">⏳</div>
+        <div class="vazio-txt">Carregando ranking...</div>
+      </div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  UTILITÁRIOS — AVATAR
+// ═══════════════════════════════════════════════════
 const paleta = ["#1A6B4A","#1E7BB5","#7C3AED","#DB2777","#059669","#D97706","#0E7490","#B45309"];
 
 function corAvatar(nome) {
@@ -44,13 +104,9 @@ function iniciais(nome) {
   return nome.trim().split(/\s+/).map(p => p[0]).join("").slice(0, 2).toUpperCase();
 }
 
-/* ═══════════════════════════════════════════════════
-   CORE — CALCULAR RANKING
-   Regras:
-   1. Ordena por pontos (maior → menor)
-   2. Empates recebem a mesma posição
-   3. Posição seguinte pula o número (ex: 1, 2, 2, 4)
-═══════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════
+//  CALCULAR RANKING
+// ═══════════════════════════════════════════════════
 function calcularRanking(lista) {
   const sorted = [...lista].sort((a, b) => b.pontos - a.pontos);
   let posAtual = 1;
@@ -64,18 +120,15 @@ function pctPontos(pontos, max) {
   return max === 0 ? 0 : Math.round((pontos / max) * 100);
 }
 
-/* ═══════════════════════════════════════════════════
-   FILTRAR POR CATEGORIA
-═══════════════════════════════════════════════════ */
 function filtrarAlunos() {
   return categoriaAtiva === "Todos"
     ? alunos
     : alunos.filter(a => a.categoria === categoriaAtiva);
 }
 
-/* ═══════════════════════════════════════════════════
-   RENDER — ESTATÍSTICAS
-═══════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════
+//  RENDER — STATS
+// ═══════════════════════════════════════════════════
 function renderStats(ranking) {
   const max  = ranking[0]?.pontos || 0;
   const cats = [...new Set(ranking.map(a => a.categoria))].length;
@@ -95,17 +148,17 @@ function renderStats(ranking) {
   `;
 }
 
-/* ═══════════════════════════════════════════════════
-   RENDER — PÓDIO (top 3, só em categoria específica)
-═══════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════
+//  RENDER — PÓDIO
+// ═══════════════════════════════════════════════════
 function renderPodio(ranking) {
   const w = document.getElementById("podio-wrapper");
   if (categoriaAtiva === "Todos" || ranking.length < 3) { w.innerHTML = ""; return; }
 
   const top   = ranking.slice(0, 3);
-  const ordem = [top[1], top[0], top[2]];      // visual: 2°, 1°, 3°
+  const ordem = [top[1], top[0], top[2]];
   const cls   = ["pos-2", "pos-1", "pos-3"];
-  const med   = ["🥈",    "🥇",    "🥉"];
+  const med   = ["🥈", "🥇", "🥉"];
 
   w.innerHTML = `
     <div class="podio">
@@ -125,9 +178,9 @@ function renderPodio(ranking) {
   `;
 }
 
-/* ═══════════════════════════════════════════════════
-   RENDER — TABELA
-═══════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════
+//  RENDER — TABELA
+// ═══════════════════════════════════════════════════
 function medalha(pos) {
   return pos === 1 ? "🥇" : pos === 2 ? "🥈" : pos === 3 ? "🥉" : pos;
 }
@@ -180,9 +233,9 @@ function renderTabela(ranking) {
   `;
 }
 
-/* ═══════════════════════════════════════════════════
-   RENDER — EDITOR ADMIN
-═══════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════
+//  RENDER — EDITOR ADMIN
+// ═══════════════════════════════════════════════════
 function renderEditor() {
   const ranking = calcularRanking(filtrarAlunos());
   document.getElementById("editor-lista").innerHTML = ranking.map(a => `
@@ -200,9 +253,9 @@ function renderEditor() {
   `).join("");
 }
 
-/* ═══════════════════════════════════════════════════
-   RENDER — TUDO
-═══════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════
+//  RENDER — TUDO
+// ═══════════════════════════════════════════════════
 function renderizar() {
   const ranking = calcularRanking(filtrarAlunos());
   renderStats(ranking);
@@ -211,9 +264,9 @@ function renderizar() {
   if (adminAberto) renderEditor();
 }
 
-/* ═══════════════════════════════════════════════════
-   FILTROS
-═══════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════
+//  FILTROS
+// ═══════════════════════════════════════════════════
 document.getElementById("filtros").addEventListener("click", function(e) {
   if (!e.target.matches(".filtro-btn")) return;
   categoriaAtiva = e.target.dataset.cat;
@@ -222,21 +275,18 @@ document.getElementById("filtros").addEventListener("click", function(e) {
   renderizar();
 });
 
-/* ═══════════════════════════════════════════════════
-   MODAL DE SENHA — CONTROLE DE ACESSO
-═══════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════
+//  MODAL DE SENHA
+// ═══════════════════════════════════════════════════
 function clicarAdmin() {
-  // Se já está no painel, sai
   if (adminAberto) { sairAdmin(); return; }
 
-  // Verifica bloqueio ativo
   if (bloqueadoAte && Date.now() < bloqueadoAte) {
     const seg = Math.ceil((bloqueadoAte - Date.now()) / 1000);
     toast(`⛔ Aguarde ${seg}s para tentar novamente.`, "error");
     return;
   }
 
-  // Abre o modal
   document.getElementById("overlay").classList.add("show");
   document.getElementById("input-senha").value = "";
   document.getElementById("msg-erro").textContent = "";
@@ -259,12 +309,11 @@ function fecharSeClicarFora(e) {
 function toggleVerSenha() {
   const inp = document.getElementById("input-senha");
   const btn = document.getElementById("btn-olho");
-  inp.type     = inp.type === "password" ? "text"     : "password";
-  btn.textContent = inp.type === "password" ? "👁️" : "🙈";
+  inp.type        = inp.type === "password" ? "text"  : "password";
+  btn.textContent = inp.type === "password" ? "👁️"   : "🙈";
 }
 
 function verificarSenha() {
-  // Bloqueia se ainda no período de espera
   if (bloqueadoAte && Date.now() < bloqueadoAte) {
     const seg = Math.ceil((bloqueadoAte - Date.now()) / 1000);
     document.getElementById("msg-erro").textContent = `Aguarde ${seg}s.`;
@@ -274,21 +323,16 @@ function verificarSenha() {
   const digitado = document.getElementById("input-senha").value;
 
   if (digitado === SENHA_ADMIN) {
-    // ✅ Senha correta
     tentativas = 0;
     fecharModal();
     abrirAdmin();
     toast("✅ Bem-vindo, professor!", "success");
-
   } else {
-    // ❌ Senha errada
     tentativas++;
-
     const inp    = document.getElementById("input-senha");
     const msgEl  = document.getElementById("msg-erro");
     const restam = MAX_TENTATIVAS - tentativas;
 
-    // Animação de erro
     inp.classList.remove("erro");
     void inp.offsetWidth;
     inp.classList.add("erro");
@@ -296,7 +340,6 @@ function verificarSenha() {
     inp.focus();
 
     if (tentativas >= MAX_TENTATIVAS) {
-      // Bloqueia por X minutos
       const ms     = BLOQUEIO_MINUTOS * 60 * 1000;
       bloqueadoAte = Date.now() + ms;
       tentativas   = 0;
@@ -304,7 +347,6 @@ function verificarSenha() {
       document.getElementById("btn-entrar").disabled = true;
       msgEl.textContent = `Muitas tentativas. Aguarde ${BLOQUEIO_MINUTOS} minuto(s).`;
 
-      // Countdown visual
       const intervalo = setInterval(() => {
         if (!bloqueadoAte || Date.now() >= bloqueadoAte) {
           clearInterval(intervalo);
@@ -316,7 +358,6 @@ function verificarSenha() {
         const seg = Math.ceil((bloqueadoAte - Date.now()) / 1000);
         msgEl.textContent = `Aguarde ${seg}s para tentar novamente.`;
       }, 1000);
-
     } else {
       msgEl.textContent = restam === 1
         ? `Senha incorreta. Última tentativa!`
@@ -325,12 +366,12 @@ function verificarSenha() {
   }
 }
 
-/* ═══════════════════════════════════════════════════
-   ADMIN — ABRIR / FECHAR PAINEL
-═══════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════
+//  ADMIN — ABRIR / FECHAR
+// ═══════════════════════════════════════════════════
 function abrirAdmin() {
   adminAberto = true;
-  const btn   = document.getElementById("btn-toggle-admin");
+  const btn = document.getElementById("btn-toggle-admin");
   btn.textContent = "🔓 Sair do Painel";
   btn.classList.add("ativo");
   document.getElementById("painel-admin").classList.add("visivel");
@@ -339,69 +380,101 @@ function abrirAdmin() {
 
 function sairAdmin() {
   adminAberto = false;
-  const btn   = document.getElementById("btn-toggle-admin");
+  const btn = document.getElementById("btn-toggle-admin");
   btn.textContent = "🔒 Área do Professor";
   btn.classList.remove("ativo");
   document.getElementById("painel-admin").classList.remove("visivel");
   toast("👋 Painel fechado.", "success");
 }
 
-/* ═══════════════════════════════════════════════════
-   ADMIN — SALVAR RANKING
-═══════════════════════════════════════════════════ */
-function salvarRanking() {
-  document.querySelectorAll(".input-pontos[data-id]").forEach(input => {
-    const id     = parseInt(input.dataset.id);
-    const pontos = Math.max(0, parseInt(input.value) || 0);
-    const aluno  = alunos.find(a => a.id === id);
-    if (aluno) aluno.pontos = pontos;
-  });
-  renderizar();
-  toast("✅ Ranking atualizado com sucesso!", "success");
+// ═══════════════════════════════════════════════════
+//  ADMIN — SALVAR RANKING
+// ═══════════════════════════════════════════════════
+async function salvarRanking() {
+  const btn = document.querySelector(".btn-salvar");
+  btn.disabled = true;
+  btn.textContent = "⏳ Salvando...";
+
+  try {
+    const inputs   = document.querySelectorAll(".input-pontos[data-id]");
+    const promises = [];
+
+    inputs.forEach(input => {
+      const id     = parseInt(input.dataset.id);
+      const pontos = Math.max(0, parseInt(input.value) || 0);
+      const aluno  = alunos.find(a => a.id === id);
+      if (aluno && aluno.pontos !== pontos) {
+        aluno.pontos = pontos;
+        promises.push(dbAtualizarPontos(id, pontos));
+      }
+    });
+
+    await Promise.all(promises);
+    renderizar();
+    toast("✅ Ranking salvo! Todos verão as mudanças.", "success");
+  } catch (e) {
+    console.error(e);
+    toast("❌ Erro ao salvar. Tente novamente.", "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "✅ Salvar Ranking";
+  }
 }
 
-/* ═══════════════════════════════════════════════════
-   ADMIN — ADICIONAR ALUNO
-═══════════════════════════════════════════════════ */
-function adicionarAluno() {
+// ═══════════════════════════════════════════════════
+//  ADMIN — ADICIONAR ALUNO
+// ═══════════════════════════════════════════════════
+async function adicionarAluno() {
   const nome   = document.getElementById("novo-nome").value.trim();
   const cat    = document.getElementById("novo-cat").value;
   const pontos = Math.max(0, parseInt(document.getElementById("novo-pontos").value) || 0);
 
   if (!nome) { toast("⚠️ Digite o nome do aluno.", "error"); return; }
 
-  alunos.push({ id: proximoId++, nome, categoria: cat, pontos });
+  try {
+    const novoAluno = await dbInserirAluno(nome, cat, pontos);
+    alunos.push(novoAluno);
 
-  document.getElementById("novo-nome").value   = "";
-  document.getElementById("novo-pontos").value = "";
+    document.getElementById("novo-nome").value   = "";
+    document.getElementById("novo-pontos").value = "";
 
-  // Se o novo aluno é de categoria diferente do filtro atual, volta p/ Todos
-  if (categoriaAtiva !== "Todos" && categoriaAtiva !== cat) {
-    categoriaAtiva = "Todos";
-    document.querySelectorAll(".filtro-btn").forEach(b =>
-      b.classList.toggle("ativo", b.dataset.cat === "Todos")
-    );
+    if (categoriaAtiva !== "Todos" && categoriaAtiva !== cat) {
+      categoriaAtiva = "Todos";
+      document.querySelectorAll(".filtro-btn").forEach(b =>
+        b.classList.toggle("ativo", b.dataset.cat === "Todos")
+      );
+    }
+
+    renderizar();
+    toast(`➕ ${nome} adicionado com sucesso!`, "success");
+  } catch (e) {
+    console.error(e);
+    toast("❌ Erro ao adicionar aluno.", "error");
   }
-
-  renderizar();
-  toast(`➕ ${nome} adicionado ao ranking!`, "success");
 }
 
-/* ═══════════════════════════════════════════════════
-   ADMIN — REMOVER ALUNO
-═══════════════════════════════════════════════════ */
-function removerAluno(id) {
+// ═══════════════════════════════════════════════════
+//  ADMIN — REMOVER ALUNO
+// ═══════════════════════════════════════════════════
+async function removerAluno(id) {
   const aluno = alunos.find(a => a.id === id);
   if (!aluno) return;
   if (!confirm(`Remover "${aluno.nome}" do ranking?`)) return;
-  alunos = alunos.filter(a => a.id !== id);
-  renderizar();
-  toast(`🗑️ ${aluno.nome} removido.`, "success");
+
+  try {
+    await dbRemoverAluno(id);
+    alunos = alunos.filter(a => a.id !== id);
+    renderizar();
+    toast(`🗑️ ${aluno.nome} removido.`, "success");
+  } catch (e) {
+    console.error(e);
+    toast("❌ Erro ao remover aluno.", "error");
+  }
 }
 
-/* ═══════════════════════════════════════════════════
-   TOAST
-═══════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════
 let toastTimer;
 function toast(msg, tipo = "success") {
   const el = document.getElementById("toast");
@@ -411,9 +484,9 @@ function toast(msg, tipo = "success") {
   toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
 }
 
-/* ═══════════════════════════════════════════════════
-   SEMANA AUTOMÁTICA NO HEADER
-═══════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════
+//  SEMANA NO HEADER
+// ═══════════════════════════════════════════════════
 (function() {
   const agora  = new Date();
   const inicio = new Date(agora.getFullYear(), 0, 1);
@@ -423,7 +496,7 @@ function toast(msg, tipo = "success") {
     `📅 Semana ${sem} · ${meses[agora.getMonth()]} ${agora.getFullYear()}`;
 })();
 
-/* ═══════════════════════════════════════════════════
-   INICIALIZAR
-═══════════════════════════════════════════════════ */
-renderizar();
+// ═══════════════════════════════════════════════════
+//  INICIALIZAR
+// ═══════════════════════════════════════════════════
+carregarDados();
