@@ -1,0 +1,49 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Usuario {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  email     String   @unique
+  senhaHash String
+  role      String   @default("PROFESSOR")
+  ativo     Boolean  @default(true)
+  criadoEm  DateTime @default(now())
+}
+
+model Temporada {
+  id          Int      @id @default(autoincrement())
+  nome        String
+  numero      Int
+  semanaAtual String?
+  ativa       Boolean  @default(false)
+  criadaEm    DateTime @default(now())
+  alunos      Aluno[]
+}
+
+model Aluno {
+  id          Int               @id @default(autoincrement())
+  nome        String
+  categoria   String
+  pontos      Int               @default(0)
+  temporadaId Int
+  criadoEm    DateTime          @default(now())
+  temporada   Temporada         @relation(fields: [temporadaId], references: [id])
+  historico   HistoricoPontos[]
+}
+
+model HistoricoPontos {
+  id          Int      @id @default(autoincrement())
+  alunoId     Int
+  pontosAnt   Int
+  pontosNov   Int
+  usuarioNome String?
+  criadoEm    DateTime @default(now())
+  aluno       Aluno    @relation(fields: [alunoId], references: [id], onDelete: Cascade)
+}
